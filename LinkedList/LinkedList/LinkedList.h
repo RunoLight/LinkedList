@@ -115,18 +115,6 @@ public:
         return *this;
     }
 
-    //T get()
-    //{
-    //    //shared_lock<shared_mutex> lock(node->m);
-    //    return node->value;
-    //}
-
-    //void set(T _value)
-    //{
-    //    //unique_lock<shared_mutex> lock(node->m);
-    //    node->value = _value;
-    //}
-
     T& operator*() const {
         shared_lock<shared_mutex> lock(node->m);
         if (node->deleted) throw (out_of_range("Invalid index"));
@@ -182,7 +170,6 @@ public:
     // Prefix
     ListIterator& operator--() {
         unique_lock<shared_mutex> lock(node->m);
-        // if (!node->prev->prev)
         if (!node->prev) throw out_of_range("Invalid index");
 
         Node<T>* prevNode = node;
@@ -202,7 +189,6 @@ public:
     // Postfix
     ListIterator operator--(int) {
         unique_lock<shared_mutex> lock(node->m);
-        // if (!node->prev->prev)
         if (!node->prev) throw out_of_range("Invalid index");
 
         Node<T>* prevNode = node;
@@ -220,12 +206,7 @@ public:
     }
 
     bool isEqual(const ListIterator<T>& other) const {
-        Node<T>* a = node;
-        Node<T>* b = other.node;
-        //shared_lock<shared_mutex> lock1(a->m);
-        ////shared_lock<shared_mutex> lock2(b->m, try_to_lock);
-        return a == b;
-        
+        return node == other.node;
     }
 
     friend bool operator==(const ListIterator<T>& a, const ListIterator<T>& b) {

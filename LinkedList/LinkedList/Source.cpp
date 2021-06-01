@@ -156,11 +156,6 @@ TEST_CASE("Core mechanics tests", "[Base]") {
         }
 
         it = list.insert_after(it, 5);
-        //REQUIRE(*it == 5);
-
-        //int abc = 2;
-        //REQUIRE(abc == 2);
-
     }
 
     SECTION("erase") {
@@ -228,43 +223,43 @@ void PusherBody(LinkedList<int> list, ListIterator<int> it, int numberOfPushes, 
 }
 
 TEST_CASE("Threaded tests", "[threads]") {
-    //SECTION("Threaded pushing, correct size of list, erase after threaded pushing") {
-    //    LinkedList<int> list;
-    //    int threadsAmount = 100;
-    //    int pushes = 100;
+    SECTION("Threaded pushing, correct size of list, erase after threaded pushing") {
+        LinkedList<int> list;
+        int threadsAmount = 100;
+        int pushes = 100;
 
-    //    std::vector<std::thread> vec;
-    //    for (int z = 0; z < threadsAmount; z++) {
-    //        vec.push_back(std::thread([&]() {
-    //            auto it = list.begin();
-    //            for (unsigned long i = 0l; i < pushes; i++) {
-    //                list.push_back(i);
-    //            }
-    //            cout << "\nAdds complete\n";
-    //            }));
-    //    }
+        std::vector<std::thread> vec;
+        for (int z = 0; z < threadsAmount; z++) {
+            vec.push_back(std::thread([&]() {
+                auto it = list.begin();
+                for (unsigned long i = 0l; i < pushes; i++) {
+                    list.push_back(i);
+                }
+                cout << "\nAdds complete\n";
+                }));
+        }
 
-    //    for (int z = 0; z < threadsAmount; z++)
-    //    {
-    //        vec[z].join();
-    //    }
+        for (int z = 0; z < threadsAmount; z++)
+        {
+            vec[z].join();
+        }
 
-    //    REQUIRE(list.Size() == (threadsAmount * pushes));
-    //    cout << "\nPASS SIZE CHECK\n";
+        REQUIRE(list.Size() == (threadsAmount * pushes));
+        cout << "\nPASS SIZE CHECK\n";
 
-    //    std::thread t2([&]() {
-    //        cout << "\nDeleter-thread started\n";
-    //        auto it = list.begin();
-    //        while (it != list.end()) {
-    //            it = list.erase(it);
-    //        }
-    //        cout << "\nDeleter-thread completed\n";
-    //    });
+        std::thread t2([&]() {
+            cout << "\nDeleter-thread started\n";
+            auto it = list.begin();
+            while (it != list.end()) {
+                it = list.erase(it);
+            }
+            cout << "\nDeleter-thread completed\n";
+        });
 
-    //    t2.join();
+        t2.join();
 
-    //    REQUIRE(list.Size() == 0);
-    //}
+        REQUIRE(list.Size() == 0);
+    }
     
     //// TODO CHECK TIME
     //SECTION("Threaded pushing, correct size of list, erase after threaded pushing") {
