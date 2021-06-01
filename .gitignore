@@ -30,3 +30,17 @@
 *.exe
 *.out
 *.app
+LinkedList/.vs/LinkedList/v16/.suo
+*.db
+*.opendb
+*.pdb
+*.ilk
+*.ipch
+*.db-wal
+*.db-shm
+*.log
+*.tlog
+*.idb
+*.vcxproj
+*.filters
+*.user
