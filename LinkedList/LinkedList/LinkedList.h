@@ -102,14 +102,11 @@ public:
     }
 
     ListIterator& operator=(const  ListIterator& other) {
-        //unique_lock<shared_mutex> lock1(node->m);
-        if (this->node == other.node) {
+        unique_lock<shared_mutex> lock1(node->m);
+        if (node == other.node) {
             return *this;
         }
-
-        //shared_lock<shared_mutex> lock2(other.node->m);
-
-        node->release();
+        shared_lock<shared_mutex> lock2(other.node->m);
         node = other.node;
         node->acquire();
         return *this;
@@ -232,7 +229,6 @@ private:
     Node<T>* node;
 };
 
-
 template<typename T>
 class LinkedList
 {
@@ -287,7 +283,7 @@ public:
             if (node->deleted)
                 return nullptr;
 
-            ////node->m.lock_shared();
+            //node->m.lock_shared();
 
             Node<T>* prev = node->prev;
             assert(prev->ref_count);
