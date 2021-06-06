@@ -33,6 +33,7 @@
 #include <iostream>
 #include <atomic>
 #include <cstdlib>
+#include <ctime>
 #include <activation.h>
 
 #include "LinkedList.h"
@@ -215,13 +216,6 @@ TEST_CASE("Core mechanics tests", "[Base]") {
     }
 }
 
-void PusherBody(LinkedList<int> list, ListIterator<int> it, int numberOfPushes, int value) {
-    while (numberOfPushes--) {
-        it = list.insert_after(it, value);
-    }
-    printf("Pusher %i ended with %i pushes\n", value, numberOfPushes);
-}
-
 TEST_CASE("Threaded tests", "[threads]") {
     SECTION("Threaded pushing, correct size of list, erase after threaded pushing") {
         LinkedList<int> list;
@@ -262,66 +256,93 @@ TEST_CASE("Threaded tests", "[threads]") {
     }
     
     //// TODO CHECK TIME
-    //SECTION("Threaded pushing, correct size of list, erase after threaded pushing") {
-    //    int threadsAmount = 100;
-    //    int pushes = 100;
-    //    
-    //    LinkedList<int> list;
-    //    vector<int> iterators;
-    //    
-    //    ListIterator<int> it = list.begin();
-    //    iterators.push_back(it);
+    SECTION("Threaded pushing, correct size of list, erase after threaded pushing") {
+        clock_t start = clock();
 
-    //    for (int i = 0; i < threadsAmount - 1; i++) {
-    //        it = list.insert_after(it, i);
-    //        it = list.insert_after(it, i);
-    //        iterators.push_back(it);
-    //    }
+        int threadsAmount = 100;
+        int pushesPerThread = 100;
+        
+        LinkedList<int> list;
+        vector<ListIterator<int>> iterators;
+        
+        auto it = list.begin();
+        //iterators.push_back(it);
 
-    //    
+        int insertsPerThread = 1;
+        for (int i = 0; i < threadsAmount; i++) {
+            it = list.insert_after(it, i);
+            iterators.push_back(it);
+        }
 
-    //    
+        CHECK(list.Size() == (threadsAmount * insertsPerThread));
 
-    //    vector<thread> pushers;
-    //    pushers.reserve(threadsAmount);
-    //    for (auto i = 0; i < threadsAmount; i++) {
-    //        pushers.push_back(
-    //            thread(PusherBody, list, it, pushes, i)
-    //        );
-    //    }
+        auto pusherFunction = [](LinkedList<int>* list, ListIterator<int> it, const int& numberOfPushes, const int& value)
+        {
+            for (auto i = 0; i < numberOfPushes; i++) {
+                    it = list->insert_after(it, value);
+            }
+            printf("Pusher %i ended with %i pushes\n", value, numberOfPushes);
+        };
 
-    //    std::vector<std::thread> vec;
-    //    for (int z = 0; z < threadsAmount; z++) {
-    //        vec.push_back(std::thread([&]() {
-    //            auto it = list.begin();
-    //            for (unsigned long i = 0l; i < pushes; i++) {
-    //                list.push_back(i);
-    //            }
-    //            cout << "\nAdds complete\n";
-    //            }));
-    //    }
+        auto deleterFunction = [](LinkedList<int>* list, ListIterator<int> it, const int& numberOfErases)
+        {
+            for (auto i = 0; i < numberOfErases; i++) {
+                it = list->erase(it);
+            }
+            printf("Eraser ended with %i erases\n", numberOfErases);
+        };
 
-    //    for (int z = 0; z < threadsAmount; z++)
-    //    {
-    //        vec[z].join();
-    //    }
+        vector<thread> pushers;
+        pushers.reserve(threadsAmount);
+        for (int i = 0; i < threadsAmount; i++) {
+            pushers.push_back(
+                thread(pusherFunction, &list, iterators[i], pushesPerThread, i)
+            );
+        }
 
-    //    REQUIRE(list.Size() == (threadsAmount * pushes));
-    //    cout << "\nPASS SIZE CHECK\n";
+        for (auto i = 0; i < threadsAmount; i++) {
+            pushers[i].join();
+        }
 
-    //    std::thread t2([&]() {
-    //        cout << "\nDeleter-thread started\n";
-    //        auto it = list.begin();
-    //        while (it != list.end()) {
-    //            it = list.erase(it);
-    //        }
-    //        cout << "\nDeleter-thread completed\n";
-    //        });
+        CHECK(list.Size() == (threadsAmount * insertsPerThread) + threadsAmount * pushesPerThread);
 
-    //    t2.join();
+        vector<thread> deleters;
+        deleters.reserve(threadsAmount);
+        for (int i = 0; i < threadsAmount; i++) {
+            deleters.push_back(
+                thread(deleterFunction, &list, iterators[i], pushesPerThread)
+            );
+        }
 
-    //    REQUIRE(list.Size() == 0);
-    //}
+        for (auto i = 0; i < threadsAmount; i++) {
+            deleters[i].join();
+        }
+
+        cout << "\n\n\n" << list.Size() << "\n\n\n";
+
+        cout << "\nDone within " << float(clock() - start) / CLOCKS_PER_SEC * 1000 << " msec." << endl;
+
+        //for (int z = 0; z < threadsAmount; z++)
+        //{
+        //    vec[z].join();
+        //}
+
+        //REQUIRE(list.Size() == (threadsAmount * pushes));
+        //cout << "\nPASS SIZE CHECK\n";
+
+        //std::thread t2([&]() {
+        //    cout << "\nDeleter-thread started\n";
+        //    auto it = list.begin();
+        //    while (it != list.end()) {
+        //        it = list.erase(it);
+        //    }
+        //    cout << "\nDeleter-thread completed\n";
+        //    });
+
+        //t2.join();
+
+        //REQUIRE(list.Size() == 0);
+    }
 }
 
 /*
