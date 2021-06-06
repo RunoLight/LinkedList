@@ -83,12 +83,10 @@ public:
     ListIterator() noexcept = default;
     ListIterator(const ListIterator& other) : node(other.node)
     {
-        //unique_lock<shared_mutex> lock(node->m);
         node->acquire();
     }
     ListIterator(Node<T>* _node) : node(_node)
     {
-        //unique_lock<shared_mutex> lock(node->m);
         node->acquire();
     }
 
@@ -97,7 +95,6 @@ public:
             cout << "NODE IS NULL WHEN DELETING ITERATOR";
             return;
         }
-        //unique_lock<shared_mutex> lock(node->m);
         node->release();
     }
 
@@ -283,7 +280,7 @@ public:
             if (node->deleted)
                 return nullptr;
 
-            //node->m.lock_shared();
+            node->m.lock_shared();
 
             Node<T>* prev = node->prev;
             assert(prev->ref_count);
@@ -296,7 +293,7 @@ public:
             assert(next->ref_count);
             next->acquire();
 
-            //node->m.unlock_shared();
+            node->m.unlock_shared();
 
             // RACES
 
@@ -307,9 +304,9 @@ public:
             //    //shared_lock<shared_mutex> currentLock(node->m);
             //    //unique_lock<shared_mutex> nextLock(next->m);
             //}
-            //prev->m.lock();
-            //node->m.lock_shared();
-            //next->m.lock();
+            prev->m.lock();
+            node->m.lock_shared();
+            next->m.lock();
             if (prev->next == node && next->prev == node) {
                 prev->next = next;
                 next->acquire();
@@ -329,9 +326,9 @@ public:
             prev->release();
             next->release();
 
-            //prev->m.unlock();
-            //node->m.unlock_shared();
-            //next->m.unlock();
+            prev->m.unlock();
+            node->m.unlock_shared();
+            next->m.unlock();
             //cout << "next to erased element value is " << next->value << endl;
         }
         return iterator(node->next);
@@ -355,6 +352,12 @@ public:
     // Returns iterator on inserted node
     iterator insert_after(iterator it, T value) {
         Node<T>* prev = it.node;
+
+        // If called after begin() in empty list (where begin() == end())
+        if (prev == tail) {
+            prev = prev->prev;
+        }
+
         if (prev == nullptr) return it;
         prev->m.lock();
 
