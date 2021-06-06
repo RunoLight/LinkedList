@@ -146,8 +146,6 @@ public:
         if (!node->next) throw (out_of_range("Invalid index"));
 
         Node<T>* prevNode = node;
-        ListIterator new_ptr(prevNode);
-
         Node<T>* newNode = node->next;
 
         while (newNode->deleted && newNode->next) {
@@ -158,7 +156,7 @@ public:
         node = newNode;
         prevNode->release();
 
-        return new_ptr;
+        return ListIterator(prevNode);
     }
 
     // Prefix
@@ -186,7 +184,6 @@ public:
         if (!node->prev) throw out_of_range("Invalid index");
 
         Node<T>* prevNode = node;
-        ListIterator new_ptr(node);
 
         Node<T>* newNode = node->prev;
         while (newNode->deleted && newNode->prev) {
@@ -196,7 +193,7 @@ public:
         node = newNode;
         prevNode->release();
 
-        return new_ptr;
+        return ListIterator(node);
     }
 
     bool isEqual(const ListIterator<T>& other) const {
@@ -272,8 +269,6 @@ public:
 
         if (node == head || node == tail) return it;
 
-        //cout << "delecting a node " << node->value << endl;
-
         for (bool retry = true; retry;) {
             retry = false;
 
@@ -287,9 +282,7 @@ public:
             prev->acquire();
 
             Node<T>* next = node->next;
-            if (next == nullptr) {
-                cout << "\n\n\n OPAAAASDLA{WWDAWPJAWDHOIAWJO:DKLMAWKD\npwjdpawdawjpo\nowawhdlkawd\n\n\n";
-            }
+            assert(next);
             assert(next->ref_count);
             next->acquire();
 
@@ -329,23 +322,18 @@ public:
             prev->m.unlock();
             node->m.unlock_shared();
             next->m.unlock();
-            //cout << "next to erased element value is " << next->value << endl;
         }
         return iterator(node->next);
     }
 
     void push_front(T value) {
-        //head->m.lock();
         iterator it(head);
-        //head->m.unlock();
         insert_after(it, value);
     }
 
     void push_back(T value) {
         Node<T>* node = tail->prev;
-        ////node->m.lock();
         iterator it(node);
-        ////node->m.unlock();
         insert_after(it, value);
     }
 
@@ -361,7 +349,7 @@ public:
         if (prev == nullptr) return it;
         prev->m.lock();
 
-        Node<T>* next = prev->next;
+        Node<T>* next = nullptr;
 
         for (bool retry = true; retry;) {
             retry = false;
@@ -370,14 +358,12 @@ public:
             next->m.lock();
 
             if (next->prev != prev) {
-                cout << "\nBruteforcing\n";
                 retry = true;
                 next->m.unlock();
             }
         }
 
         Node<T>* node = new Node<T>(move(value));
-        //Node<T>* node = new Node<T>(value);
 
         node->prev = prev;
         node->next = next;
@@ -397,63 +383,26 @@ public:
 
     iterator begin() noexcept {
         auto node = head->next;
-        //unique_lock<shared_mutex> lock(node->m);
+        unique_lock<shared_mutex> lock(node->m);
         return iterator(node);
     }
 
     iterator end() noexcept {
         auto node = tail;
-        //unique_lock<shared_mutex> lock(node->m);
+        unique_lock<shared_mutex> lock(node->m);
         return iterator(node);
     }
 
     bool empty() noexcept {
-        //shared_lock<shared_mutex> lock(m);
+        //shared_lock<shared_mutex> lock(node->m);
         return head->next == tail;
     }
 
     void clear() noexcept {
         iterator current(head->next);
-        while (current.node != tail)
-        {
-            if (*current % 900 == 0 && *current != 0) {
-                cout << ":)\n";
-            }
-            if (*current % 975 == 0 && *current != 0) {
-                cout << ":)\n";
-            }
-            if (*current % 995 == 0 && *current != 0) {
-                cout << ":)\n";
-            }
+        while (current.node != tail) {
             current = erase(current);
         }
-    }
-
-    //size_t size() noexcept {
-    //    //shared_lock<shared_mutex> lock(m);
-    //    return size;
-    //}
-
-    shared_mutex m;
-
-    string debug() {
-        string output = "\n";
-        Node<T>* current = head;
-
-        while (current != tail) {
-            output += "\n[val:" 
-                + to_string(current->value) 
-                + ",ref:" 
-                + to_string(current->ref_count) 
-                + ",del:" 
-                + to_string(current->deleted) 
-                + "]\n";
-            current = current->next;
-        }
-        output += "\n";
-
-        return output;
-        
     }
 
     size_t Size() {
@@ -461,58 +410,8 @@ public:
     }
 
 private:
-
-    //iterator insert_internal(iterator it, T value) {
-    //    if (it.node == nullptr) return it;
-
-    //    Node<T>* node = new Node<T>{ move(value), 2 };
-
-    //    node->prev = it.node->prev;
-    //    node->next = it.node;
-    //    it.node->prev->next = node;
-    //    it.node->prev = node;
-
-    //    iterator iter(node, this);
-    //    size++;
-    //    return iter;
-    //}
-
-    //iterator internal_erase(iterator position) {
-    //    if (position.node->deleted) {
-    //        return position;
-    //    }
-
-    //    auto output = iterator(position.node->next, this);
-
-    //    inc_ref_count(position.node->next);
-    //    inc_ref_count(position.node->prev);
-
-    //    if (position.node == head->next) {
-    //        head->next = position.node->next;
-    //    }
-    //    else {
-    //        position.node->prev->next = position.node->next;
-    //    }
-
-    //    if (position.node == tail->prev) {
-    //        tail->prev = position.node->prev;
-    //    }
-    //    else {
-    //        position.node->next->prev = position.node->prev;
-    //    }
-
-    //    size--;
-    //    cout << size << " ";
-
-    //    position.node->deleted = true;
-    //    dec_ref_count(position.node);
-    //    dec_ref_count(position.node);
-
-    //    return output;
-    //}
-
-
-    Node<T>* head;
-    Node<T>* tail;
+    shared_mutex   m;
+    Node<T>*       head;
+    Node<T>*       tail;
     atomic<size_t> size;
 };
