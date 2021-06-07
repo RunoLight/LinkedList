@@ -406,7 +406,27 @@ public:
     }
 
     size_t Size() {
-        return this->size;
+        return size;
+    }
+
+
+    string debug() {
+        string output = "\n";
+
+        if (head->next == tail) return "\n[Empty list]\n";
+
+        Node<T>* current = head->next;
+        while (current != tail) {
+            output += "["
+                + to_string(current->value)
+                + ",ref:"
+                + to_string(current->ref_count)
+                + ",del:"
+                + to_string(current->deleted)
+                + "]\n";
+            current = current->next;
+        }
+        return output;
     }
 
 private:
