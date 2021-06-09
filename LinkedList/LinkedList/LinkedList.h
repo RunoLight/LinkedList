@@ -36,6 +36,16 @@ private:
     void operator=(const Node<T>&) = delete;
 
     void release() {
+        //if (this == nullptr) {
+        //    cout << "WHAT";
+        //    throw exception("WHAT?");
+        //}
+
+        //if (this->next == nullptr || this->prev == nullptr) {
+        //    cout << "WHAT2";
+        //    throw exception("WHAT2?");
+        //}
+
         if (--ref_count != 0) {
             return;
         }
@@ -99,13 +109,19 @@ public:
     }
 
     ListIterator& operator=(const  ListIterator& other) {
-        unique_lock<shared_mutex> lock1(node->m);
-        if (node == other.node) {
-            return *this;
+        Node<T>* previousNode;
+        {
+            unique_lock<shared_mutex> lock1(node->m);
+            if (node == other.node) {
+                return *this;
+            }
+            shared_lock<shared_mutex> lock2(other.node->m);
+            previousNode = node;
+
+            node = other.node;
+            node->acquire();
         }
-        shared_lock<shared_mutex> lock2(other.node->m);
-        node = other.node;
-        node->acquire();
+        previousNode->release();
         return *this;
     }
 
@@ -231,6 +247,10 @@ public:
 
     friend class ListIterator<T>;
 
+    //void DeleteNode() {
+
+    //}
+
     LinkedList() : head(nullptr), tail(nullptr), size(0) {
         tail = new Node<T>();
         head = new Node<T>();
@@ -263,65 +283,52 @@ public:
     LinkedList& operator=(const LinkedList& other) = delete;
     LinkedList& operator=(LinkedList&& x) = delete;
 
+    // Returns iterator on next to erased node
     iterator erase(iterator it) {
 
         Node<T>* node = it.node;
 
+        if (node->deleted)
+            return nullptr;
         if (node == head || node == tail) return it;
+
+        Node<T>* prev;
+        Node<T>* next;
 
         for (bool retry = true; retry;) {
             retry = false;
-
-            if (node->deleted)
-                return nullptr;
-
-            node->m.lock_shared();
-
-            Node<T>* prev = node->prev;
-            assert(prev->ref_count);
-            prev->acquire();
-
-            Node<T>* next = node->next;
-            assert(next);
-            assert(next->ref_count);
-            next->acquire();
-
-            node->m.unlock_shared();
-
-            // RACES
-
-            // Короче блок ниже можно на вот такие локи мувнуть по идее но нужно 
-            // глянуть в каком они порядке будут анлочиться поэтому могут и не работать типо
-            //{ 
-            //    //unique_lock<shared_mutex> prevLock(prev->m);
-            //    //shared_lock<shared_mutex> currentLock(node->m);
-            //    //unique_lock<shared_mutex> nextLock(next->m);
-            //}
-            prev->m.lock();
-            node->m.lock_shared();
-            next->m.lock();
-            if (prev->next == node && next->prev == node) {
-                prev->next = next;
-                next->acquire();
-                next->prev = prev;
+            {
+                shared_lock<shared_mutex> currentLock(node->m);
+                prev = node->prev;
                 prev->acquire();
-
-                node->deleted = true;
-                node->release();
-                node->release();
-                size--;
-                cout << endl << size;
+                next = node->next;
+                next->acquire();
+                assert(prev && prev->ref_count);
+                assert(next && next->ref_count);
             }
-            else {
-                retry = true;
+            // RACES
+            { 
+                unique_lock<shared_mutex> prevLock(prev->m);
+                shared_lock<shared_mutex> currentLock(node->m);
+                unique_lock<shared_mutex> nextLock(next->m);
+
+                if (prev->next == node && next->prev == node) {
+                    prev->next = next;
+                    next->acquire();
+                    next->prev = prev;
+                    prev->acquire();
+
+                    node->deleted = true;
+                    node->release();
+                    node->release();
+                    size--;
+                }
+                else {
+                    retry = true;
+                }
+                prev->release();
+                next->release();
             }
-
-            prev->release();
-            next->release();
-
-            prev->m.unlock();
-            node->m.unlock_shared();
-            next->m.unlock();
         }
         return iterator(node->next);
     }
@@ -363,7 +370,8 @@ public:
             }
         }
 
-        Node<T>* node = new Node<T>(move(value));
+        Node<T>* node = new Node<T>(value);
+        //Node<T>* node = new Node<T>(move(value));
 
         node->prev = prev;
         node->next = next;
@@ -394,7 +402,6 @@ public:
     }
 
     bool empty() noexcept {
-        //shared_lock<shared_mutex> lock(node->m);
         return head->next == tail;
     }
 
@@ -417,6 +424,13 @@ public:
 
         Node<T>* current = head->next;
         while (current != tail) {
+
+            if (!current || current->deleted)
+                throw new overflow_error("something gone wrong");
+
+            if (!current->next)
+                throw new overflow_error("something gone wrong 2");
+
             output += "["
                 + to_string(current->value)
                 + ",ref:"
