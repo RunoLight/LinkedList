@@ -30,9 +30,14 @@ class Node
     friend class LinkedList<T>;
 
 private:
-    Node() = default;
-    Node(T _value) : value(_value), ref_count(0), prev(this), next(this) { }
+    Node(LinkedList<T>* _list) : list(_list) { }
+    Node(T _value, LinkedList<T>* _list) : value(_value), ref_count(0), prev(this), next(this), list(_list) { }
     Node(const Node<T>&) = delete;
+
+    ~Node() {
+        //cout << "Node destructor\n";
+    }
+
     void operator=(const Node<T>&) = delete;
 
     void release() {
@@ -49,27 +54,32 @@ private:
         if (--ref_count != 0) {
             return;
         }
-        queue<Node<T>*> nodesToDelete;
-        nodesToDelete.push(this);
-        while (!nodesToDelete.empty()) {
-            Node<T>* currentNode = nodesToDelete.front();
-            Node<T>* prev = currentNode->prev;
-            Node<T>* next = currentNode->next;
-            if (prev) {
-                prev->ref_count--;
-                if (prev->ref_count == 0) {
-                    nodesToDelete.push(prev);
-                }
-            }
-            if (next) {
-                next->ref_count--;
-                if (next->ref_count == 0) {
-                    nodesToDelete.push(next);
-                }
-            }
-            nodesToDelete.pop();
-            delete (currentNode);
-        }
+
+        //delete(this);
+
+        list->DeleteNode(this);
+
+        //queue<Node<T>*> nodesToDelete;
+        //nodesToDelete.push(this);
+        //while (!nodesToDelete.empty()) {
+        //    Node<T>* currentNode = nodesToDelete.front();
+        //    Node<T>* prev = currentNode->prev;
+        //    Node<T>* next = currentNode->next;
+        //    if (prev) {
+        //        prev->ref_count--;
+        //        if (prev->ref_count == 0) {
+        //            nodesToDelete.push(prev);
+        //        }
+        //    }
+        //    if (next) {
+        //        next->ref_count--;
+        //        if (next->ref_count == 0) {
+        //            nodesToDelete.push(next);
+        //        }
+        //    }
+        //    nodesToDelete.pop();
+        //    delete (currentNode);
+        //}
     }
 
     void acquire() {
@@ -82,6 +92,7 @@ private:
     Node<T>*     prev;
     Node<T>*     next;
     shared_mutex m;
+    LinkedList<T>* list;
 };
 
 template<typename T>
@@ -91,11 +102,11 @@ public:
     friend class LinkedList<T>;
 
     ListIterator() noexcept = default;
-    ListIterator(const ListIterator& other) : node(other.node)
+    ListIterator(const ListIterator& other) : node(other.node), list(other.node->list)
     {
         node->acquire();
     }
-    ListIterator(Node<T>* _node) : node(_node)
+    ListIterator(Node<T>* _node) : node(_node), list(_node->list)
     {
         node->acquire();
     }
@@ -105,7 +116,7 @@ public:
             cout << "NODE IS NULL WHEN DELETING ITERATOR";
             return;
         }
-        node->release();
+        list->ReleaseNode(node);
     }
 
     ListIterator& operator=(const  ListIterator& other) {
@@ -121,7 +132,8 @@ public:
             node = other.node;
             node->acquire();
         }
-        previousNode->release();
+        list->ReleaseNode(previousNode);
+        //previousNode->release();
         return *this;
     }
 
@@ -151,7 +163,8 @@ public:
 
         newNode->acquire();
         node = newNode;
-        prevNode->release();
+        list->ReleaseNode(prevNode);
+        //prevNode->release();
 
         return *this;
     }
@@ -170,7 +183,8 @@ public:
 
         newNode->acquire();
         node = newNode;
-        prevNode->release();
+        list->ReleaseNode(prevNode);
+        //prevNode->release();
 
         return ListIterator(prevNode);
     }
@@ -189,7 +203,8 @@ public:
 
         newNode->acquire();
         node = newNode;
-        prevNode->release();
+        list->ReleaseNode(prevNode);
+        //prevNode->release();
 
         return *this;
     }
@@ -207,7 +222,8 @@ public:
         }
         newNode->acquire();
         node = newNode;
-        prevNode->release();
+        list->ReleaseNode(prevNode);
+        //prevNode->release();
 
         return ListIterator(node);
     }
@@ -237,6 +253,7 @@ public:
 
 private:
     Node<T>* node;
+    LinkedList<T>* list;
 };
 
 template<typename T>
@@ -247,13 +264,63 @@ public:
 
     friend class ListIterator<T>;
 
-    //void DeleteNode() {
+    void ReleaseNode(Node<T>* node) {
+        node->ref_count--;
+        if (node->ref_count != 0) {
+            return;
+        }
 
-    //}
+        queue<Node<T>*> nodesToDelete;
+        nodesToDelete.push(node);
+        while (!nodesToDelete.empty()) {
+            Node<T>* currentNode = nodesToDelete.front();
+            Node<T>* prev = currentNode->prev;
+            Node<T>* next = currentNode->next;
+            if (prev) {
+                prev->ref_count--;
+                if (prev->ref_count == 0) {
+                    nodesToDelete.push(prev);
+                }
+            }
+            if (next) {
+                next->ref_count--;
+                if (next->ref_count == 0) {
+                    nodesToDelete.push(next);
+                }
+            }
+            nodesToDelete.pop();
+            delete currentNode;
+        }
+    }
+
+    void DeleteNode(Node<T>* node) {
+        queue<Node<T>*> nodesToDelete;
+        nodesToDelete.push(node);
+
+        while (!nodesToDelete.empty()) {
+            Node<T>* currentNode = nodesToDelete.front();
+            Node<T>* prev = currentNode->prev;
+            Node<T>* next = currentNode->next;
+            if (prev) {
+                prev->ref_count--;
+                if (prev->ref_count == 0) {
+                    nodesToDelete.push(prev);
+                }
+            }
+            if (next) {
+                next->ref_count--;
+                if (next->ref_count == 0) {
+                    nodesToDelete.push(next);
+                }
+            }
+            nodesToDelete.pop();
+            delete (currentNode);
+        }
+    }
 
     LinkedList() : head(nullptr), tail(nullptr), size(0) {
-        tail = new Node<T>();
-        head = new Node<T>();
+        tail = new Node<T>(this);
+        head = new Node<T>(this);
         tail->prev = head;
         head->next = tail;
 
@@ -273,11 +340,20 @@ public:
     }
 
     ~LinkedList() {
+        //cout << "List destructor\n";
+        //Node<T>* nextNode;
+        //for (auto it = head; it != nullptr; it = nextNode) {
+        //    nextNode = it->next;
+        //    delete it;
+        //}
+        cout << "List destructor\n";
         Node<T>* nextNode;
-        for (auto it = head; it != nullptr; it = nextNode) {
+        for (auto it = head; it != tail; it = nextNode) {
             nextNode = it->next;
             delete it;
         }
+        delete tail;
+
     }
 
     LinkedList& operator=(const LinkedList& other) = delete;
@@ -319,15 +395,19 @@ public:
                     prev->acquire();
 
                     node->deleted = true;
-                    node->release();
-                    node->release();
+                    ReleaseNode(node);
+                    ReleaseNode(node);
+                    //node->release();
+                    //node->release();
                     size--;
                 }
                 else {
                     retry = true;
                 }
-                prev->release();
-                next->release();
+                ReleaseNode(prev);
+                ReleaseNode(next);
+                //prev->release();
+                //next->release();
             }
         }
         return iterator(node->next);
@@ -370,8 +450,7 @@ public:
             }
         }
 
-        Node<T>* node = new Node<T>(value);
-        //Node<T>* node = new Node<T>(move(value));
+        Node<T>* node = new Node<T>(value, this);
 
         node->prev = prev;
         node->next = next;
@@ -385,6 +464,52 @@ public:
 
         prev->m.unlock();
         next->m.unlock();
+
+        return iterator(node);
+    }
+
+    iterator insert_after2(iterator it, T value) {
+        Node<T>* prev = it.node;
+
+        // If called after begin() in empty list (where begin() == end())
+        if (prev == tail) {
+            prev = prev->prev;
+        }
+        if (prev == nullptr) return it;
+
+        unique_lock<shared_mutex> lock(prev->m);
+        //prev->m.lock();
+
+        Node<T>* next = nullptr;
+
+
+        for (bool retry = true; retry;) {
+            retry = false;
+
+            next = prev->next;
+            unique_lock<shared_mutex> lockNext(next->m);
+            if (next->prev != prev) {
+                retry = true;
+            }
+        }
+
+        unique_lock<shared_mutex> lockNext(next->m);
+        Node<T>* node = new Node<T>(value, this);
+        node->acquire();
+        node->acquire();
+
+        node->prev = prev;
+        node->next = next;
+
+        prev->next = node;
+        node->acquire();
+        next->prev = node;
+        node->acquire();
+
+        size++;
+
+        //prev->m.unlock();
+        //next->m.unlock();
 
         return iterator(node);
     }
@@ -415,7 +540,6 @@ public:
     size_t Size() {
         return size;
     }
-
 
     string debug() {
         string output = "\n";
