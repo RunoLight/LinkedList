@@ -346,7 +346,6 @@ public:
         //    nextNode = it->next;
         //    delete it;
         //}
-        cout << "List destructor\n";
         Node<T>* nextNode;
         for (auto it = head; it != tail; it = nextNode) {
             nextNode = it->next;

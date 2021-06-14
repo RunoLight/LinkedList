@@ -220,22 +220,12 @@ TEST_CASE("Core mechanics tests", "[Base]") {
             LinkedList<int>* list = new LinkedList<int>();
             for (int i = 0; i < pushes; i++) {
                 list->push_back(i);
-                if (i % (pushes / 100) == 0) {
-                    cout << i << " pushes, " << i / (pushes / 100) << " %" << endl;
-                }
             }
             REQUIRE(list->Size() == pushes);
-            cout << "done pushes\n";
-
-            int i = 0;
             auto it = list->begin();
             for (int j = 0; j < 1000000; j++) {
-                if (j % (pushes / 100) == 0) {
-                    cout << i << " pushes, " << j / (pushes / 100) << " %" << endl;
-                }
                 it = list->erase(it);
             }
-            cout << "LIST SIZE " << list->Size() << endl;
             delete list;
         }
     }
@@ -249,7 +239,7 @@ auto pusherFunction = [](LinkedList<int>* list, ListIterator<int> it, const int&
     for (auto i = 0; i < numberOfPushes; i++) {
         it = list->insert_after(it, value);
     }
-    printf("Pusher %i ended with %i pushes\n", value, numberOfPushes);
+    //printf("Pusher %i ended with %i pushes\n", value, numberOfPushes);
 };
 
 auto deleterFunction = [](LinkedList<int>* list, ListIterator<int> it, const int& numberOfErases)
@@ -259,7 +249,7 @@ auto deleterFunction = [](LinkedList<int>* list, ListIterator<int> it, const int
         //list->erase(it);
         it = list->erase(it);
     }
-    printf("Eraser ended with %i erases\n", numberOfErases);
+    //printf("Eraser ended with %i erases\n", numberOfErases);
 };
 
 void ThreadedTest1(const int threads, int tries, const int totalPushes) {
@@ -276,7 +266,7 @@ void ThreadedTest1(const int threads, int tries, const int totalPushes) {
         }
         delete it;
 
-        cout << "Size after iterators reserved " << list->Size() << endl;
+        //cout << "Size after iterators reserved " << list->Size() << endl;
 
         // Total size of list ready for pushing is okay
         REQUIRE(list->Size() == threads * 2);
@@ -291,96 +281,39 @@ void ThreadedTest1(const int threads, int tries, const int totalPushes) {
                 );
             }
             join_all(pushers);
-            //for (int i = 0; i < threads; i++) {
-            //    auto iterat = iterators[i];
-            //    for (auto j = 0; j < pushesPerThread; j++) {
-            //        iterat = list->insert_after(iterat, i);
-            //    }
-            //    printf("Pusher %i ended with %i pushes\n", i, pushesPerThread);
-            //}
         }
 
-        std::cout << "done pushes\n";
-        REQUIRE(list->Size() == threads * (pushesPerThread + 1));
-        cout << "Size after pushers done " << list->Size() << endl;
-        {
-            // TODO DELETE
-            auto z = 0;
-            auto iter = list->begin();
-            while (iter != list->end()) {
-                iter++;
-                z++;
-            }
-            std::cout << z << endl;
-        }
+        //std::cout << "done pushes\n";
+        REQUIRE(list->Size() == threads * (pushesPerThread + 2));
 
-        cout << "Size after itering done " << list->Size() << endl;
+        //cout << "Size after itering done " << list->Size() << endl;
 
         {
             vector<thread> deleters;
             deleters.reserve(threads);
             for (int i = 0; i < threads; i++) {
                 deleters.push_back(
-                    thread(deleterFunction, list, iterators[i], pushesPerThread - 1)
+                    thread(deleterFunction, list, iterators[i], pushesPerThread)
                 );
             }
             join_all(deleters);
-
-            //for (int i = 0; i < threads; i++) {
-            //    auto iterat = iterators[i];
-            //    for (auto j = 0; j < pushesPerThread + 1; j++) {
-            //        iterat = list->erase(iterat);
-            //    }
-            //    printf("Eraser ended with %i erases\n", pushesPerThread);
-            //}
         }
 
 
-        cout << "Size after deleters done " << list->Size() << endl;
+        //cout << "Size after deleters done " << list->Size() << endl;
 
-        REQUIRE(list->Size() == threads);
-        
-        //auto deleter = thread(deleterFunction, list, list->begin(), totalPushes);
-        //deleter.join();
+        REQUIRE(list->Size() == threads * 2);
 
-        std::cout << "done erases\n";
-        //REQUIRE(list->Size() == threads);
-        delete list;
-
-    //    // Total size of list ready for pushing is okay
-    //    CHECK(list.Size() == threadsAmount);
-    //    cout << "\nIterators reserved, inital elements added";
-    //    cout << list.debug();
-
-    //    vector<thread> pushers;
-    //    pushers.reserve(threadsAmount);
-    //    for (int i = 0; i < threadsAmount; i++) {
-    //        pushers.push_back(
-    //            thread(pusherFunction, &list, iterators[i], pushesPerThread, i)
-    //        );
-    //    }
-    //    join_all(pushers);
-
-
-        // PUSH IN ONE THREAD
-        //auto pusher = thread(pusherFunction, list, list->begin(), totalPushes, 0);
-        //pusher.join();
-
-        //REQUIRE(list->Size() == totalPushes);
-
-
-        //REQUIRE(list->Size() == totalPushes);
-
-
-        //int i = 0;
-        //auto it = list->begin();
-        //for (int j = 0; j < totalPushes; j++) {
-        //    if (j % (totalPushes / 100) == 0) {
-        //        cout << j << " erases, " << j / (totalPushes / 100) << " %" << endl;
-        //    }
-        //    it = list->erase(it);
+        //ListIterator<int>* it2 = new ListIterator<int>(list->begin());
+        //for (int i = 0; i < threads; i++) {
+        //    REQUIRE(*it == i);
+        //    (*it2)++;
+        //    REQUIRE(*it == i);
+        //    (*it2)++;
         //}
 
+        //delete it2;
+        delete list;
     }
 }
 
@@ -391,16 +324,22 @@ TEST_CASE("Threaded tests", "[threads]") {
     SECTION("Threaded pushing, correct size of list, erase after threaded pushing") {
         auto repeatEveryTest = 5;
         auto totalPushes = 10000000;
-        //int threadAmount = 1;
-        int threadAmount = 4;
+        int threadAmount = 1;
+        //int threadAmount = 4;
         int pushesPerThread;
 
         while (threadAmount <= hardwareThreadsAmount) {
-            std::cout << "Multithreaded test, " << threadAmount << " threads\n\n";
+            //std::cout << "Multithreaded test, " << threadAmount << " threads\n\n";
             pushesPerThread = totalPushes / threadAmount;
+            clock_t start = clock();
 
             ThreadedTest1(threadAmount, repeatEveryTest, totalPushes);
-
+            cout << "\nThreaded test. " 
+                << threadAmount << " threads, "
+                << pushesPerThread << " elements per thread, " 
+                << totalPushes << "total elements," 
+                << float(clock() - start) / CLOCKS_PER_SEC * 1000 << " msec." << endl;
+            
             threadAmount *= 2;
         }
 
